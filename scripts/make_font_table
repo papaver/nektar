@@ -1,0 +1,125 @@
+#!/Library/Frameworks/Python.framework/Versions/2.6/bin/python
+
+#------------------------------------------------------------------------------
+# imports
+#------------------------------------------------------------------------------
+
+import os
+import sys
+import math
+import PIL
+import PIL.Image
+
+#------------------------------------------------------------------------------
+# until command line args support is added 
+#------------------------------------------------------------------------------
+
+fontPngPath  = "/Users/moiz/Desktop/iphone_stuff/debug_font.png"
+glyphWidth   = 5
+glyphHeight  = 5
+glyphSpacing = 1
+glyphStartX  = 0
+glyphStartY  = 0
+glyphRows    = 10
+glyphCols    = 10
+
+#------------------------------------------------------------------------------
+# MakeFontTable
+#------------------------------------------------------------------------------
+
+class MakeFontTable():
+  """Outputs a binary version of the image in a table.
+  """
+
+  def main(self):
+    """Application's main.
+    """
+
+    # attempt to open up the image 
+    print("Processing %s...\n" % os.path.basename(fontPngPath))
+    fontImage = PIL.Image.open(fontPngPath)
+    
+    # get size
+    (width, height) = fontImage.size
+
+
+    # make a list of possible x coords
+    xCoords     = range(glyphStartX, width)
+    xCoordCount = len(xCoords)
+
+    # check if glyphCols is valid
+    spanGlyphWidth     = glyphWidth + glyphSpacing
+    availableGlyphCols = xCoordCount / spanGlyphWidth
+    minGlyphCols       = min(glyphCols, availableGlyphCols)
+
+    # find valid glyph x incidies 
+    xIndicies = []
+    for glyphIndex in range(minGlyphCols):
+      startX    = glyphStartX + (glyphIndex * spanGlyphWidth)
+      endX      = startX + spanGlyphWidth
+      xIndicies += xCoords[startX:endX][:-glyphSpacing]
+
+
+    # make a list of possible y coords
+    yCoords     = range(glyphStartY, width)
+    yCoordCount = len(yCoords)
+
+    # check if glyphCols is valid
+    spanGlyphHeight    = glyphHeight + glyphSpacing
+    availableGlyphRows = yCoordCount / spanGlyphHeight
+    minGlyphRows       = min(glyphRows, availableGlyphRows)
+
+    # find valid glyph y incidies 
+    yIndicies = []
+    for glyphIndex in range(minGlyphRows):
+      startY    = glyphStartY + (glyphIndex * spanGlyphHeight)
+      endY      = startY + spanGlyphHeight
+      yIndicies += yCoords[startY:endY][:-glyphSpacing]
+
+
+    # loop through the glyphs and create binary string representation
+    data = []
+    for y in yIndicies:
+
+      # process the current row
+      row = ""
+      for x in xIndicies: 
+        pixel = fontImage.getpixel((x,y))
+        isSet = pixel[3]
+        row  += '1' if isSet else '0'
+
+      # pad empty bits (must fit in a char properly)
+      remaining = len(row) % 8
+      if (remaining):
+        row += '0' * (8 - remaining)
+
+      # add new row to data
+      data.append(row)
+
+    # calculate how many chars are needed to represent each row
+    charsPerRow = len(data[0]) / 8
+
+    # print out variables
+    print("static u8 s_glyph_width  = %d;" % glyphWidth)
+    print("static u8 s_glyph_height = %d;" % glyphHeight)
+    print("static u8 s_glyph_rows   = %d;" % minGlyphRows)
+    print("static u8 s_glyph_cols   = %d;" % minGlyphCols)
+      
+    # print out the data
+    print("")
+    print("static u8 s_debug_font_table[%s][%s] = {" % (len(data), charsPerRow))
+    for row in data:
+        print("  "),
+        for index in range(charsPerRow):
+          start = index * 8
+          end   = start + 8
+          print("0x%.2x, " % int(row[start:end], 2)),
+        print("")
+    print("};")
+  
+#------------------------------------------------------------------------------
+# main
+#------------------------------------------------------------------------------
+
+if (__name__ == "__main__"):
+  MakeFontTable().main()
